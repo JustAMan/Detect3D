@@ -71,7 +71,7 @@ void analyze_pair_psnr(const Mat& part1, const Mat& part2, double& fullShift, do
 	int moved = 0;
 	int p = 1;
 	vector<double> maxPSNRValues;
-	vector<int> shifts;
+	vector<double> shifts;
 	for (auto iter1 = scaledPart1.rbegin(), iter2 = scaledPart2.rbegin(); iter1 != scaledPart1.rend(); iter1++, iter2++) {
 		int diff = 0;
 		double maxPSNR = 0;
@@ -84,10 +84,11 @@ void analyze_pair_psnr(const Mat& part1, const Mat& part2, double& fullShift, do
 			}
 		}
 		p *= factor;
-		shifts.push_back(moved + diff);
+		shifts.push_back(double(moved + diff) / iter1->size().width);
 		moved = (moved + diff) * factor;
 //		cout << endl;
 		maxPSNRValues.push_back(maxPSNR);
+		cout << "psnr: " << maxPSNR << ", shift: " << (-shifts.back() * 100) << endl;
 	}
 
 	// Averaging the results
@@ -100,7 +101,6 @@ void analyze_pair_psnr(const Mat& part1, const Mat& part2, double& fullShift, do
 			maxPSNR = maxPSNRValues[i];
 		}
 	}
-	fullShift /= (part1.size().width);
 	avgPSNR /= maxPSNRValues.size();
 }
 
