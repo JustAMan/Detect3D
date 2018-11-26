@@ -49,7 +49,7 @@ double PSNRShift(int shift, const Mat& I1, const Mat& I2) {
 	}
 }
 
-void analyze_pair_psnr(const Mat& part1, const Mat& part2, double& fullShift, double& avgPSNR, double& maxPSNR)
+void analyze_pair_psnr(const Mat& part1, const Mat& part2, double& avgShift, double& maxShift, double& avgPSNR, double& maxPSNR)
 {
 	// Scaling by 2
 	std::vector<Mat> scaledPart1, scaledPart2;
@@ -88,29 +88,33 @@ void analyze_pair_psnr(const Mat& part1, const Mat& part2, double& fullShift, do
 		moved = (moved + diff) * factor;
 //		cout << endl;
 		maxPSNRValues.push_back(maxPSNR);
-		cout << "psnr: " << maxPSNR << ", shift: " << (-shifts.back() * 100) << endl;
+		//cerr << "psnr: " << maxPSNR << ", shift: " << (-shifts.back() * 100) << endl;
 	}
 
 	// Averaging the results
 	avgPSNR = 0;
 	maxPSNR = 0;
-	fullShift = shifts.back();
+	avgShift = 0;
+	maxShift = 0;
 	for (size_t i = 0; i < scaledPart1.size(); i++) {
 		avgPSNR += maxPSNRValues[i];
+		avgShift += shifts[i];
 		if (maxPSNR < maxPSNRValues[i]) {
 			maxPSNR = maxPSNRValues[i];
 		}
+		if (fabs(shifts[i]) > fabs(maxShift)) maxShift = shifts[i];
 	}
 	avgPSNR /= maxPSNRValues.size();
+	avgShift /= shifts.size();
 }
 
-void analyze_pair(const Mat& part1, const Mat& part2, double& probability, double& isLeft)
+void analyze_pair(const Mat& part1, const Mat& part2, double& probability, double& isLeft) 
 {
-	double fullShift, avgPSNR, maxPSNR;
-	analyze_pair_psnr(part1, part2, fullShift, avgPSNR, maxPSNR);
+	double avgShift, maxShift, avgPSNR, maxPSNR;
+	analyze_pair_psnr(part1, part2, avgShift, maxShift, avgPSNR, maxPSNR);
 
-	probability = fmin((avgPSNR + maxPSNR) * 0.5 / 30, 1.0);
-	isLeft = -fullShift * 100;
+	probability = (avgPSNR + maxPSNR) * 0.5 / 30;
+	isLeft = (avgShift + maxShift) * 50;
 }
 
 void analyze_stereo(const Mat& image, stereo_type_t& stereo, double& probability, double& isLeft)
@@ -128,7 +132,9 @@ void analyze_stereo(const Mat& image, stereo_type_t& stereo, double& probability
 	double topBottomProbability, sideBySideProbability;
 	double topBottomIsLeft, sideBySideIsLeft;
 
+	//cerr << "top-bottom" << std::endl;
 	analyze_pair(part1H, part2H, topBottomProbability, topBottomIsLeft);
+	//cerr << "side-by-side" << std::endl;
 	analyze_pair(part1W, part2W, sideBySideProbability, sideBySideIsLeft);
 
 	if (fmax(topBottomProbability, sideBySideProbability) <= 0.5)
@@ -140,13 +146,13 @@ void analyze_stereo(const Mat& image, stereo_type_t& stereo, double& probability
 	else if (topBottomProbability > sideBySideProbability)
 	{
 		stereo = st_top_bottom;
-		probability = topBottomProbability;
+		probability = fmin(topBottomProbability, 1.0);
 		isLeft = topBottomIsLeft;
 	}
 	else
 	{
 		stereo = st_side_by_side;
-		probability = sideBySideProbability;
+		probability = fmin(sideBySideProbability, 1.0);
 		isLeft = sideBySideIsLeft;
 	}
 }
